@@ -4,15 +4,20 @@ package com.mycomp.validation.service.helper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import com.mycomp.validation.constant.ErrorCodeEnum;
+import com.mycomp.validation.exception.ValidationException;
 import com.mycomp.validation.http.HttpRequest;
 import com.mycomp.validation.pojo.CreatePaymentReq;
 import com.mycomp.validation.pojo.InitiatePaymentRequest;
 import com.mycomp.validation.pojo.PaymentResponse;
 import com.mycomp.validation.processing.ProcessingCreatePaymentReq;
 import com.mycomp.validation.processing.ProcessingCreatePaymentRes;
+import com.mycomp.validation.processing.ProcessingErrorResponse;
 import com.mycomp.validation.util.JsonUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -107,29 +112,27 @@ public class CreatePaymentHelper {
 	    return response;
 	}
 
-	/* public PaymentResponse handlePaypalResponse(ResponseEntity<String> httpResponse) {
-		log.info("Handling PayPal response in PaymentServiceImpl "
+	public PaymentResponse handleProcessingResponse(ResponseEntity<String> httpResponse) {
+		log.info("Handling Processing response in PaymentServiceImpl "
 				+ "httpResponse:{}", httpResponse);
 		
 		if(httpResponse.getStatusCode().is2xxSuccessful()) { //success
 
-			PaypalOrderRes paypalOrder = jsonUtil.fromJson(
-					httpResponse.getBody(), PaypalOrderRes.class);
-			log.info("Converted response body to PaypalOrder: {}", paypalOrder);
+			ProcessingCreatePaymentRes processingOrder = jsonUtil.fromJson(
+					httpResponse.getBody(), ProcessingCreatePaymentRes.class);
+			log.info("Converted response body to ProcessingOrder: {}", processingOrder);
 			
-			OrderResponse orderResponse = toOrderResponse(paypalOrder);
+			PaymentResponse orderResponse = toOrderResponse(processingOrder);
 			log.info("Converted OrderResponse: {}", orderResponse);
 			
-			// If we get a valid response with PAYER_ACTION_REQUIRED status & url & id, then only its success else its failed.
+			//checking If getting a valid response with PAYER_ACTION_REQUIRED status & url & id, then only its success else its failed.
 			if(orderResponse != null 
-					&& orderResponse.getOrderId() != null
-					&& !orderResponse.getOrderId().isEmpty()
-					&& orderResponse.getPaypalStatus() != null
-					&& orderResponse.getPaypalStatus().equalsIgnoreCase(
-							Constant.PAYER_ACTION_REQUIRED)
+					&& orderResponse.getProviderReference() != null
+					&& orderResponse.getTxnStatusId() !=0
+					&& orderResponse.getTxnReference() != null
 					&& orderResponse.getRedirectUrl() != null
 					&& !orderResponse.getRedirectUrl().isEmpty()) {
-				log.info("Order created successfully with PAYER_ACTION_REQUIRED status");
+				log.info("Payment created successfully with TxnStatusId = 3 in processing service");
 				return orderResponse;
 			}
 			
@@ -139,35 +142,27 @@ public class CreatePaymentHelper {
 		}
 		
 		// if 4xx or 5xx then proper error
-		if(httpResponse.getStatusCode().is4xxClientError() 
+		if (httpResponse.getStatusCode().is4xxClientError() 
 				|| httpResponse.getStatusCode().is5xxServerError()) {
-			log.error("Received 4xx, 5xx error response from PayPal service");
+			log.error("Received 4xx, 5xx error response from Processing service");
 			
-			PaypalErrorResponse paypalErrorRes = jsonUtil.fromJson(
-					httpResponse.getBody(), PaypalErrorResponse.class);
-			log.info("PayPal error response details: {}", paypalErrorRes);
+			ProcessingErrorResponse errorResponse = jsonUtil.fromJson(
+					httpResponse.getBody(), ProcessingErrorResponse.class);
 			
-			String errorCode = ErrorCodeEnum.PAYPAL_ERROR.getErrorCode();
-			String errorMessage = PaypalOrderUtil.getPaypalErrorSummary(
-					paypalErrorRes);
-			log.info("Generated PayPal error summary: {}", errorMessage);
-			
-			throw new PaypalProviderException(
-					errorCode,
-					errorMessage,
+			throw new ValidationException(
+					errorResponse.getErrorCode(),
+					errorResponse.getErrorMessage(),
 					HttpStatus.valueOf(
 							httpResponse.getStatusCode().value()));
 		}
 		
-
-		log.error("Unexpected response from PayPal service. "
+		log.error("Unexpected response from Processing service. "
 				+ "httpResponse: {}", httpResponse);
-		
-		throw new PaypalProviderException(
-				ErrorCodeEnum.PAYPAL_UNKNOWN_ERROR.getErrorCode(),
-				ErrorCodeEnum.PAYPAL_UNKNOWN_ERROR.getErrorMessage(),
+		throw new ValidationException(
+				ErrorCodeEnum.PROCESSING_UNKNOWN_ERROR.getErrorCode(),
+				ErrorCodeEnum.PROCESSING_UNKNOWN_ERROR.getErrorMessage(),
 				HttpStatus.BAD_GATEWAY);
-	}*/
+	}
 
 }
 

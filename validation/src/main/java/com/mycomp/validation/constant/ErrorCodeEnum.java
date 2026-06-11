@@ -17,8 +17,8 @@ public enum ErrorCodeEnum {
 	PROVIDER_REQUIRED("10008","payment provider is required field and cannot be null/blank"), 
 	PAYMENT_TYPE_REQUIRED("10009","payment type is required field and cannot be null/blank"),
 	MERCHANT_TXN_REF_REQUIRED("10010","Merchant transaction reference is required field and cannot be null/blank"),
-	PAYMENT_PROCESSING_SERVICE_UNAVAILABLE("10011","Processing service is currently unavailable. Please try again later.");
-	
+	PAYMENT_PROCESSING_SERVICE_UNAVAILABLE("10011","Processing service is currently unavailable. Please try again later."),
+	PROCESSING_UNKNOWN_ERROR("10012", "Unknown error occurred while processing request in processing service");
 
     private final String errorCode;
     private final String errorMessage;

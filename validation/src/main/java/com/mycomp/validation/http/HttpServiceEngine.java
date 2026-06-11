@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import com.mycomp.validation.constant.ErrorCodeEnum;
@@ -42,16 +43,6 @@ public class HttpServiceEngine {
 			// valid error response from server
 			log.error("HTTP error response received: {}", e.getMessage(), e);
 			
-			// if the error is gateway time or service unavailable, throw PaypalProviderException
-			if (e.getStatusCode() == HttpStatus.GATEWAY_TIMEOUT ||
-					e.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE) {
-				log.error("Service is unavailable or gateway timed out");
-				throw new ValidationException(
-						ErrorCodeEnum.PAYMENT_PROCESSING_SERVICE_UNAVAILABLE.getErrorCode(),
-						ErrorCodeEnum.PAYMENT_PROCESSING_SERVICE_UNAVAILABLE.getErrorMessage(),
-						HttpStatus.SERVICE_UNAVAILABLE);
-			}
-			
 			// return ResponseEntity with error details 
 			String errorResponse = e.getResponseBodyAsString();
 			log.info("Error response body: {}", errorResponse);
@@ -60,12 +51,22 @@ public class HttpServiceEngine {
 					.status(e.getStatusCode())
 					.body(errorResponse);
 			
-		} catch (Exception e) { // No Response case.
+			
+		} catch (ResourceAccessException e) {
+
+		    log.error("Processing Service not reachable", e);
+
+		    throw new ValidationException(
+		            ErrorCodeEnum.PAYMENT_PROCESSING_SERVICE_UNAVAILABLE.getErrorCode(),
+		            ErrorCodeEnum.PAYMENT_PROCESSING_SERVICE_UNAVAILABLE.getErrorMessage(),
+		            HttpStatus.SERVICE_UNAVAILABLE);
+		    
+		}catch (Exception e) { // No Response case.
 			log.error("Exception while preparing form data: {}", e.getMessage(), e);
 	
 			throw new ValidationException(
-					ErrorCodeEnum.PAYMENT_PROCESSING_SERVICE_UNAVAILABLE.getErrorCode(),
-					ErrorCodeEnum.PAYMENT_PROCESSING_SERVICE_UNAVAILABLE.getErrorMessage(),
+					ErrorCodeEnum.PROCESSING_UNKNOWN_ERROR.getErrorCode(),
+					ErrorCodeEnum.PROCESSING_UNKNOWN_ERROR.getErrorMessage(),
 					HttpStatus.SERVICE_UNAVAILABLE);
 		}
 	}

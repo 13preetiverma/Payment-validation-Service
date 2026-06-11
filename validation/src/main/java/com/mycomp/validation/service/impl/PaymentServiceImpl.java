@@ -49,7 +49,7 @@ public class PaymentServiceImpl implements PaymentService {
 
 	@Override
 	public PaymentResponse initiatePayment(InitiatePaymentRequest intiatePaymentRequest,String txnReference) {
-		log.info("Initiating payment in PaymentServiceImpl... txnReference: {}",
+		log.info("Initiating payment in PaymentServiceImpl, txnReference: {}",
 				txnReference);
 		HttpRequest httprequest = createPaymentHelper.prepareInitiateOrderHttpRequest(intiatePaymentRequest, txnReference);
 		log.info("Prepared HttpRequest for initiate payment call: {}", httprequest);
@@ -57,11 +57,12 @@ public class PaymentServiceImpl implements PaymentService {
 		ResponseEntity<String> successResponse = httpService.makeHttpCall(httprequest);
 		log.info("HTTP response from HttpServiceEngine: {}", successResponse);
 		
-		//directly converting to PaymentResponse since processing initiate response is same as PaymentResponse
-		PaymentResponse paymentResponse = jsonUtil.fromJson(
-				successResponse.getBody(), PaymentResponse.class);
-		log.info("prepared PaymentResponse for initiate payment call: {}", paymentResponse);
+		PaymentResponse paymentResponse = createPaymentHelper.handleProcessingResponse(successResponse);
+		//instead we can directly convert to PaymentResponse since processing initiate response is same as PaymentResponse
+		
+		//return paymentResponse;
 		return paymentResponse;
+		
 		
 		
 	}
@@ -71,20 +72,21 @@ public class PaymentServiceImpl implements PaymentService {
 		
 		HttpRequest httpReq = completePaymentHelper.prepareHttpRequest(
 				txnReference);
+		
 		PaymentResponse response;
+		
 		try {
 			ResponseEntity<String> httpResponse = httpService.makeHttpCall(httpReq);
 			log.info("HTTP response from HttpServiceEngine: {}", httpResponse);
 			
-			response = jsonUtil.fromJson(
-					httpResponse.getBody(), PaymentResponse.class);
+			response = completePaymentHelper.handlePaypalResponse(httpResponse);
 			
 	
 		} catch (Exception e) {
 			log.error("Error occurred while making captureOrder HTTP call to Processing Service: ", e);
 			
+			// here reconciliation job will be handled.
 			// Note, dont change the status to FAILED since user already APPROVED.
-			// Let reconciliation job handle such cases.
 			// In case reconciliation also resolved it as failed, 
 			//then manually back-office can handle this payment..
 			// just throw error back
